@@ -21,7 +21,56 @@ function init() {
 			(taskList.shift())();
 	}
 
-	// TODO: init graphics-related things
+	// initialize WebGL
+	var gl, positionLoc, colorLoc;
+	(function() {
+		var vertexShaderSrc =
+			"attribute vec2 a_position;" +
+			"" +
+			"void main() {" +
+			"  gl_Position = vec4(a_position, 0, 1);" +
+			"}";
+		var fragmentShaderSrc =
+			"precision mediump float;" +
+			"" +
+			"uniform vec4 u_color;" +
+			"" +
+			"void main() {" +
+			"  gl_FragColor = u_color;"+
+			"}";
+
+		var canvas = document.getElementById("map");
+		gl = canvas.getContext("webgl", { antialias: true }) ||
+			canvas.getContext("experimental-webgl", { antialias: true });
+		if (! gl)
+			throw "WebGL not supported";
+
+		function getShader(source, type, typeString) {
+			var shader = gl.createShader(type);
+			gl.shaderSource(shader, source);
+			gl.compileShader(shader);
+			if (! gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+				throw "Error in " + typeString + "shader: " + gl.getShaderInfoLog(shader);
+			return shader;
+		}
+		var vertexShader = getShader(vertexShaderSrc, gl.VERTEX_SHADER, "VERTEX");
+		var fragmentShader = getShader(fragmentShaderSrc, gl.FRAGMENT_SHADER, "FRAGMENT");
+
+		gl.viewport(0, 0, canvas.width, canvas.height);
+		gl.clearColor(1, 1, 1, 1);
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+		var program = gl.createProgram();
+		gl.attachShader(program, vertexShader);
+		gl.attachShader(program, fragmentShader);
+		gl.linkProgram(program);
+
+		positionLoc = gl.getAttribLocation(program, "a_position");
+		colorLoc = gl.getUniformLocation(program, "u_color");
+
+		gl.enableVertexAttribArray(positionLoc);
+		gl.useProgram(program);
+ 	})();
 
 	taskList.push(function() {
 		var http;
@@ -63,9 +112,28 @@ function init() {
 	});
 
 	taskList.push(function() {
-		
-		// TODO: draw
 
+		function line(points, width, color) {
+			var buffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+			gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+			gl.lineWidth(width);
+			gl.uniform4fv(colorLoc, color);
+			gl.drawArrays(gl.LINE_STRIP, 0, 4);
+		}
+
+		// draw example lines
+		var points = [
+			0.8, -0.8,
+			-0.8, -0.8,
+			0.8, 0.8,
+			-0.8, 0.8
+		];
+		line(points, 10, [1, 0.5, 0.5, 1]);
+		line(points, 4, [0, 0, 0, 1]);
+
+		nextTask();
 	});
 
 	nextTask();
