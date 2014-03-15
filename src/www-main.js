@@ -23,6 +23,7 @@ function init() {
 
 	// initialize WebGL
 	var gl, positionLoc, colorLoc;
+	var viewportWidth, viewportHeight, devicePixelRatio;
 	(function() {
 		var vertexShaderSrc =
 			"attribute vec2 a_position;" +
@@ -56,7 +57,13 @@ function init() {
 		var vertexShader = getShader(vertexShaderSrc, gl.VERTEX_SHADER, "VERTEX");
 		var fragmentShader = getShader(fragmentShaderSrc, gl.FRAGMENT_SHADER, "FRAGMENT");
 
-		gl.viewport(0, 0, canvas.width, canvas.height);
+		devicePixelRatio = window.devicePixelRatio || 1;
+		viewportWidth = Math.round(canvas.clientWidth * devicePixelRatio);
+		viewportHeight = Math.round(canvas.clientHeight * devicePixelRatio);
+		canvas.width = viewportWidth;
+		canvas.height = viewportHeight;
+
+		gl.viewport(0, 0, viewportWidth, viewportHeight);
 		gl.clearColor(1, 1, 1, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
