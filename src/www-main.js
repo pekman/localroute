@@ -22,14 +22,17 @@ function init() {
 	}
 
 	// initialize WebGL
-	var gl, positionLoc, colorLoc;
+	var gl, positionLoc, colorLoc, modelviewMatLoc, projectionMatLoc;
 	var viewportWidth, viewportHeight, devicePixelRatio;
 	(function() {
 		var vertexShaderSrc =
 			"attribute vec2 a_position;" +
 			"" +
+			"uniform mat4 u_modelview;" +
+			"uniform mat4 u_projection;" +
+			"" +
 			"void main() {" +
-			"  gl_Position = vec4(a_position, 0, 1);" +
+			"  gl_Position = u_projection * u_modelview * vec4(a_position, 0, 1);" +
 			"}";
 		var fragmentShaderSrc =
 			"precision mediump float;" +
@@ -73,6 +76,8 @@ function init() {
 		gl.linkProgram(program);
 
 		positionLoc = gl.getAttribLocation(program, "a_position");
+		modelviewMatLoc = gl.getUniformLocation(program, "u_modelview");
+		projectionMatLoc = gl.getUniformLocation(program, "u_projection");
 		colorLoc = gl.getUniformLocation(program, "u_color");
 
 		gl.enableVertexAttribArray(positionLoc);
@@ -120,6 +125,56 @@ function init() {
 
 	taskList.push(function() {
 
+		function makeOrtho2d(left, right, bottom, top)
+		{
+			var tx = -(right + left) / (right - left);
+			var ty = -(top + bottom) / (top - bottom);
+
+			return [
+				2 / (right - left), 0, 0, tx,
+				0, 2 / (top - bottom), 0, ty,
+				0, 0, -1, 0,
+				0, 0, 0, 1 ];
+		}
+
+		// set projection matrix
+		var aspectRatio = viewportWidth / viewportHeight;
+		var projectionMatrix;
+		if (aspectRatio > 1)
+			projectionMatrix = makeOrtho2d( -aspectRatio, aspectRatio, -1, 1 );
+		else
+			projectionMatrix = makeOrtho2d( -1, 1, -1/aspectRatio, 1/aspectRatio );
+		gl.uniformMatrix4fv( projectionMatLoc, false, projectionMatrix );
+
+
+		// set model-view matrix
+		// TODO: interactive zooming and panning (i.e. scale and translate)
+		// For now, set it to show a 40x40 km square centered at the
+		// same point that the canvas-based version uses initially.
+		var center = new gis.Deg(60.1687, 24.9409).toMU();
+		var swCorner = center.offset(-20000, -20000);
+		var neCorner = center.offset(20000, 20000);
+		var translateX = -center.llon;
+		var translateY = -center.llat;
+		var areaHeight = neCorner.llat - swCorner.llat;
+		var areaWidth = neCorner.llon - swCorner.llon;
+		var scale;
+		if (areaWidth/areaHeight > aspectRatio) {
+			scale = 2/areaWidth;
+			if (aspectRatio > 1)
+				scale /= aspectRatio;
+		} else {
+			scale = 2/areaHeight;
+			if (aspectRatio < 1)
+				scale *= aspectRatio;
+		}
+		gl.uniformMatrix4fv(modelviewMatLoc, false, [
+			scale, 0, 0, 0,
+			0, scale, 0, 0,
+			0, 0, 1, 0,
+			scale*translateX, scale*translateY, 0, 1
+		]);
+
 		function line(points, width, color) {
 			var buffer = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -127,18 +182,19 @@ function init() {
 			gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
 			gl.lineWidth(width);
 			gl.uniform4fv(colorLoc, color);
-			gl.drawArrays(gl.LINE_STRIP, 0, 4);
+			gl.drawArrays(gl.LINE_STRIP, 0, points.length);
 		}
 
-		// draw example lines
+		// draw example lines that cover the displayed area
 		var points = [
-			0.8, -0.8,
-			-0.8, -0.8,
-			0.8, 0.8,
-			-0.8, 0.8
+			neCorner.llon, swCorner.llat,
+			swCorner.llon, swCorner.llat,
+			neCorner.llon, neCorner.llat,
+			swCorner.llon, neCorner.llat
 		];
 		line(points, 10, [1, 0.5, 0.5, 1]);
 		line(points, 4, [0, 0, 0, 1]);
+		console.log("done");
 
 		nextTask();
 	});
