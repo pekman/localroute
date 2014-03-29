@@ -182,7 +182,7 @@ function init() {
 			gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
 			gl.lineWidth(width);
 			gl.uniform4fv(colorLoc, color);
-			gl.drawArrays(gl.LINE_STRIP, 0, points.length);
+			gl.drawArrays(gl.LINE_STRIP, 0, points.length/2);
 		}
 
 		// draw example lines that cover the displayed area
